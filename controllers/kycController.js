@@ -20,9 +20,9 @@ const sendWelcomeEmail = async (recipientEmail, firstName) => {
     });
 
     let info = await transporter.sendMail({
-        from: '"Movie Recommendation System" <support@verdantcharity.org>',
+        from: '"Flicksasa" <support@verdantcharity.org>',
         to: recipientEmail,
-        subject: 'Welcome to the Movie Recommendation System',
+        subject: 'Welcome to Flicksasa',
         text: `Hello ${firstName},\n\nWelcome to our Movie Recommendation System! We are excited to have you with us.`,
         html: htmlContent,
     });

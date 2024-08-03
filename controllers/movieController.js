@@ -1,5 +1,6 @@
 // controllers/movieController.js
 const axios = require('axios');
+const { spawn } = require('child_process');
 const MovieUser = require('../models/MovieUser');
 const Kyc = require('../models/Kyc');
 const UserInteraction = require('../models/UserInteraction');
@@ -59,8 +60,6 @@ const getMovieDetails = async (req, res) => {
     }
 };
 
-
-
 const getTvShows = async (req, res) => {
     try {
         const response = await tmdbApi.get('/tv/popular');
@@ -101,7 +100,6 @@ const getMyList = async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch my list', error: error.message });
     }
 };
-
 
 const shuffleArray = (array) => {
     for (let i = array.length - 1; i > 0; i--) {
@@ -234,8 +232,6 @@ const getRecommendations = async (req, res) => {
     }
 };
 
-
-
 const updateInteraction = async (req, res) => {
     const userId = req.user;
     const { movieId, action, type } = req.body;
@@ -250,24 +246,25 @@ const updateInteraction = async (req, res) => {
     } else if (action === 'disliked') {
         update = { liked: false, loved: false, disliked: true };
     } else if (action === 'watchlist') {
-        update = { watchlist: true, type };
+        update = { watchlist: true };
     } else if (action === 'remove_watchlist') {
         update = { watchlist: false };
+    } else {
+        return res.status(400).json({ message: 'Invalid action' });
     }
 
     try {
         const interaction = await UserInteraction.findOneAndUpdate(
-            { user: userId, movieId: movieId },
-            update,
+            { user: userId, movieId, type },
+            { $set: update },
             { new: true, upsert: true }
         );
+
         res.status(200).json(interaction);
     } catch (error) {
-        console.error('Error updating interaction:', error);
         res.status(500).json({ message: 'Failed to update interaction', error: error.message });
     }
 };
-
 
 const getInteractions = async (req, res) => {
     const userId = req.user;
@@ -280,14 +277,52 @@ const getInteractions = async (req, res) => {
         const interactions = await UserInteraction.find({ user: userId });
         res.status(200).json(interactions);
     } catch (error) {
-        console.error('Error fetching interactions:', error);
         res.status(500).json({ message: 'Failed to fetch interactions', error: error.message });
     }
 };
 
+const searchMoviesWithML = async (req, res) => {
+    const { query } = req.query;
+    const userId = req.user;
+
+    if (!query) {
+        return res.status(400).json({ message: 'Query parameter is required' });
+    }
+
+    // Use the search query as the favorite movie
+    const favorite_movie = query;
+
+    try {
+        const response = await tmdbApi.get('/search/movie', {
+            params: { query },
+        });
+
+        // Trigger the ML script with dynamic values
+        const mlProcess = spawn('python3', ['../flicksasa-ML/hybrid.py', '--user_id', userId.toString(), '--favorite_movie', favorite_movie]);
+
+        mlProcess.stdout.on('data', (data) => {
+            console.log(`ML Output: ${data}`);
+        });
+
+        mlProcess.stderr.on('data', (data) => {
+            console.error(`ML Error: ${data}`);
+        });
+
+        mlProcess.on('close', (code) => {
+            console.log(`ML process exited with code ${code}`);
+        });
+
+        res.status(200).json(response.data.results);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to search for movies with ML', error: error.message });
+    }
+};
+
+
 module.exports = {
     getPopularMovies,
     searchMovies,
+    searchMoviesWithML,
     getMovieDetails,
     getTvShows,
     getLatest,
@@ -296,3 +331,4 @@ module.exports = {
     updateInteraction,
     getInteractions
 };
+

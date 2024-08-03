@@ -29,7 +29,7 @@ async function sendEmail(recipientEmail, subject, greeting, message, code) {
   });
 
   let info = await transporter.sendMail({
-    from: '"Movie Recommendation System" <support@verdantcharity.org>',
+    from: '"Flicksasa" <support@verdantcharity.org>',
     to: recipientEmail,
     subject: subject,
     text: `${greeting}\n\n${message}\n\nCode: ${code}`,
